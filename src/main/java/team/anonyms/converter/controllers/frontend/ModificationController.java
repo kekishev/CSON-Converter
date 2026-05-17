@@ -48,7 +48,7 @@ public class ModificationController {
                 .map(modificationMapper::modificationServiceDtoToControllerDto)
                 .toList();
 
-        return ResponseEntity.ok(paginationHandler.makeSliceFromList(allModifications, offset, limit));
+        return ResponseEntity.ok(paginationHandler.makeSlice(allModifications, offset, limit));
     }
 
     @GetMapping("/{patternId}")

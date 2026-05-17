@@ -68,7 +68,7 @@ if still valid, it is reused; otherwise a new one is generated.
 }
 ```
 
-**Response `200 OK`** — sets `jwtToken` `HttpOnly` cookie (4 h) and returns:
+**Response `200 OK`** — sets `jwtToken` `HttpOnly; Secure; SameSite=Strict` cookie (4 h) and returns:
 ```json
 {
   "success": true,
@@ -156,7 +156,7 @@ Create a new account. Triggers a verification email to the provided address.
 }
 ```
 
-**Response `201 Created`** — sets `jwtToken` `HttpOnly` cookie and returns:
+**Response `201 Created`** — sets `jwtToken` `HttpOnly; Secure; SameSite=Strict` cookie and returns:
 ```json
 {
   "success": true,
@@ -385,7 +385,7 @@ Get the total number of modifications belonging to a pattern.
 
 ### File Conversion — `/conversion`
 
-All endpoints consume `multipart/form-data` and stream the converted file back as an attachment.
+No authentication required. All endpoints consume `multipart/form-data` and stream the converted file back as an attachment.
 
 **Multipart form part:**
 
@@ -450,15 +450,14 @@ All unhandled exceptions are caught by `GlobalExceptionHandler`. The mapping is:
 | `NullPointerException`           | `500 Internal Server Error` | empty                                      |
 | `CredentialException`            | `400 Bad Request`           | JSON — `message: "CREDENTIAL"`             |
 | `IllegalPatternException`        | `400 Bad Request`           | JSON — `message: "PATTERN"`                |
-| `EmailExistsException`           | `400 Bad Request`           | JSON — `message: "EMAIL EXISTS"`           |
+| `EmailAlreadyExistsException`    | `400 Bad Request`           | JSON — `message: "EMAIL ALREADY EXISTS"`   |
 | `EmailAlreadyVerifiedException`  | `400 Bad Request`           | JSON — `message: "EMAIL ALREADY VERIFIED"` |
 | `AccessDeniedException`          | `403 Forbidden`             | JSON — `message: "ACCESS DENIED"`          |
 
-Exceptions that return a JSON body use the following envelope (defined in `ErrorResponse`):
+Exceptions that return a JSON body use the following envelope (defined in `ExceptionResponse`):
 
 ```json
 {
-  "statusCode": 400,
   "message": "CREDENTIAL",
   "time": "2025-01-01T00:00:00Z"
 }
