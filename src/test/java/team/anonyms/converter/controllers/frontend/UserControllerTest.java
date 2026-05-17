@@ -1,6 +1,7 @@
-package team.anonyms.converter.controllers;
+package team.anonyms.converter.controllers.frontend;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,7 +14,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 
-import team.anonyms.converter.controllers.frontend.UserController;
+import team.anonyms.converter.controllers.GlobalExceptionHandler;
 import team.anonyms.converter.dto.controller.authentication.AuthenticationControllerDto;
 import team.anonyms.converter.dto.controller.authentication.LoginResultControllerDto;
 import team.anonyms.converter.dto.controller.user.UserControllerDto;
@@ -35,12 +36,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.List;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-// Update needed
 @WebMvcTest(UserController.class)
 @ContextConfiguration(classes = {UserController.class, GlobalExceptionHandler.class})
 @AutoConfigureMockMvc(addFilters = false)
@@ -58,6 +57,11 @@ class UserControllerTest {
 
     @MockitoBean
     private AuthenticationMapper authenticationMapper;
+
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
+    }
 
     @Test
     void testRegister_Success() throws Exception {
@@ -152,6 +156,43 @@ class UserControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(MockMvcResultMatchers.jsonPath("$.username").value("newname"))
                 .andExpect(MockMvcResultMatchers.jsonPath("$.isVerified").value(true));
+    }
+
+    @Test
+    void testUpdateEmail_Success() throws Exception {
+        UUID userId = UUID.randomUUID();
+        String newEmail = "new_test@gmail.com";
+
+        UserServiceDto serviceResponseDto = new UserServiceDto(
+                userId,
+                "username",
+                newEmail,
+                false
+        );
+
+        UserControllerDto responseDto = new UserControllerDto(
+                userId,
+                "username",
+                newEmail,
+                false
+        );
+
+        Mockito.when(userService.updateEmail(anyString(), eq(userId)))
+                .thenReturn(serviceResponseDto);
+
+        Mockito.when(userMapper.userServiceDtoToControllerDto(serviceResponseDto))
+                .thenReturn(responseDto);
+
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(userId, null, List.of())
+        );
+
+        mockMvc.perform(MockMvcRequestBuilders.put("/users/email")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(newEmail))
+                .andExpect(status().isOk())
+                .andExpect(MockMvcResultMatchers.jsonPath("$.email").value(newEmail))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.isVerified").value(false));
     }
 
     @Test
