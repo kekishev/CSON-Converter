@@ -1,6 +1,7 @@
 package team.anonyms.converter.controllers.frontend;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,13 +32,11 @@ import team.anonyms.converter.services.frontend.UserService;
 import java.util.UUID;
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -58,6 +57,11 @@ class UserControllerTest {
 
     @MockitoBean
     private AuthenticationMapper authenticationMapper;
+
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
+    }
 
     @Test
     void testRegister_Success() throws Exception {
@@ -112,6 +116,10 @@ class UserControllerTest {
     void testUpdateUser_Success() throws Exception {
         UUID userId = UUID.randomUUID();
 
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(userId, null, List.of())
+        );
+
         UserToUpdateControllerDto requestDto = new UserToUpdateControllerDto("newname", "test password");
 
         UserToUpdateServiceDto serviceRequestDto = new UserToUpdateServiceDto(
@@ -143,7 +151,6 @@ class UserControllerTest {
                 .thenReturn(responseDto);
 
         mockMvc.perform(MockMvcRequestBuilders.put("/users")
-                        .with(authentication(new UsernamePasswordAuthenticationToken(userId, null, List.of())))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requestDto)))
                 .andExpect(status().isOk())
@@ -176,8 +183,11 @@ class UserControllerTest {
         Mockito.when(userMapper.userServiceDtoToControllerDto(serviceResponseDto))
                 .thenReturn(responseDto);
 
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(userId, null, List.of())
+        );
+
         mockMvc.perform(MockMvcRequestBuilders.put("/users/email")
-                        .with(authentication(new UsernamePasswordAuthenticationToken(userId, null, List.of())))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(newEmail))
                 .andExpect(status().isOk())
@@ -189,10 +199,13 @@ class UserControllerTest {
     void testDeleteUser_Success() throws Exception {
         UUID userId = UUID.randomUUID();
 
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(userId, null, List.of())
+        );
+
         Mockito.doNothing().when(userService).deleteUser(userId);
 
-        mockMvc.perform(MockMvcRequestBuilders.delete("/users")
-                        .with(authentication(new UsernamePasswordAuthenticationToken(userId, null, List.of()))))
+        mockMvc.perform(MockMvcRequestBuilders.delete("/users"))
                 .andExpect(status().isNoContent());
     }
 }
