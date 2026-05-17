@@ -35,12 +35,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.List;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-// Update needed
 @WebMvcTest(UserController.class)
 @ContextConfiguration(classes = {UserController.class, GlobalExceptionHandler.class})
 @AutoConfigureMockMvc(addFilters = false)
@@ -152,6 +150,43 @@ class UserControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(MockMvcResultMatchers.jsonPath("$.username").value("newname"))
                 .andExpect(MockMvcResultMatchers.jsonPath("$.isVerified").value(true));
+    }
+
+    @Test
+    void testUpdateEmail_Success() throws Exception {
+        UUID userId = UUID.randomUUID();
+        String newEmail = "new_test@gmail.com";
+
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(userId, null, List.of())
+        );
+
+        UserServiceDto serviceResponseDto = new UserServiceDto(
+                userId,
+                "username",
+                newEmail,
+                false
+        );
+
+        UserControllerDto responseDto = new UserControllerDto(
+                userId,
+                "username",
+                newEmail,
+                false
+        );
+
+        Mockito.when(userService.updateEmail(anyString(), eq(userId)))
+                .thenReturn(serviceResponseDto);
+
+        Mockito.when(userMapper.userServiceDtoToControllerDto(serviceResponseDto))
+                .thenReturn(responseDto);
+
+        mockMvc.perform(MockMvcRequestBuilders.put("/users/email")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(newEmail))
+                .andExpect(status().isOk())
+                .andExpect(MockMvcResultMatchers.jsonPath("$.email").value(newEmail))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.isVerified").value(false));
     }
 
     @Test
