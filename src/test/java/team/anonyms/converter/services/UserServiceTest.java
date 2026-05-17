@@ -19,6 +19,7 @@ import team.anonyms.converter.repositories.ModificationRepository;
 import team.anonyms.converter.repositories.PatternRepository;
 import team.anonyms.converter.repositories.UserRepository;
 import team.anonyms.converter.repositories.codes.EmailVerificationCodeRepository;
+import team.anonyms.converter.repositories.codes.PasswordResetVerificationCodeRepository;
 import team.anonyms.converter.services.frontend.EmailService;
 import team.anonyms.converter.services.frontend.JwtService;
 import team.anonyms.converter.services.frontend.UserService;
@@ -27,8 +28,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 
-// Update needed
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
 
@@ -44,6 +45,8 @@ class UserServiceTest {
     private PatternRepository patternRepository;
     @Mock
     private ModificationRepository modificationRepository;
+    @Mock
+    private PasswordResetVerificationCodeRepository passwordResetVerificationCodeRepository;
     @Mock
     private UserMapper userMapper;
     @Mock
@@ -128,26 +131,90 @@ class UserServiceTest {
         assertThrows(EntityNotFoundException.class, () -> userService.updateUser(updateDto, userId));
     }
 
-    /*
+    @Test
+    void testUpdateEmail_Success() {
+        UUID userId = UUID.randomUUID();
+        String newEmail = "new_email@gmail.com";
+
+        User mockUser = Mockito.mock(User.class);
+        UserServiceDto responseDto = new UserServiceDto(
+                userId,
+                "username",
+                newEmail,
+                false
+        );
+
+        Mockito.when(userRepository.findById(userId)).thenReturn(Optional.of(mockUser));
+        Mockito.when(userRepository.findByEmail(newEmail)).thenReturn(Optional.empty());
+        Mockito.when(userMapper.userToServiceDto(mockUser)).thenReturn(responseDto);
+
+        UserServiceDto result = userService.updateEmail(newEmail, userId);
+
+        assertNotNull(result);
+        assertEquals(newEmail, result.email());
+        assertEquals(false, result.isVerified());
+
+        Mockito.verify(mockUser).setEmail(newEmail);
+        Mockito.verify(mockUser).setIsVerified(false);
+        Mockito.verify(userRepository).save(mockUser);
+        Mockito.verify(emailService).sendEmailVerificationCode(mockUser);
+    }
+
+    @Test
+    void testUpdateEmail_ThrowsEmailAlreadyExists() {
+        UUID userId = UUID.randomUUID();
+        String takenEmail = "taken_email@gmail.com";
+
+        User mockUser = Mockito.mock(User.class);
+        User anotherUser = Mockito.mock(User.class);
+
+        Mockito.when(userRepository.findById(userId)).thenReturn(Optional.of(mockUser));
+        Mockito.when(userRepository.findByEmail(takenEmail)).thenReturn(Optional.of(anotherUser));
+
+        EmailAlreadyExistsException exception = assertThrows(
+                EmailAlreadyExistsException.class,
+                () -> userService.updateEmail(takenEmail, userId)
+        );
+
+        assertTrue(exception.getMessage().contains("Email already exists"));
+
+        Mockito.verify(userRepository, Mockito.never()).save(any());
+        Mockito.verify(emailService, Mockito.never()).sendEmailVerificationCode(any(User.class));
+    }
+
+    @Test
+    void testUpdateEmail_ThrowsEntityNotFound() {
+        UUID userId = UUID.randomUUID();
+        String newEmail = "new_email@gmail.com";
+
+        Mockito.when(userRepository.findById(userId)).thenReturn(Optional.empty());
+
+        EntityNotFoundException exception = assertThrows(
+                EntityNotFoundException.class,
+                () -> userService.updateEmail(newEmail, userId)
+        );
+
+        assertTrue(exception.getMessage().contains("User not found"));
+
+        Mockito.verify(userRepository, Mockito.never()).save(any());
+    }
+
     @Test
     void testDeleteUser_Success() {
         UUID userId = UUID.randomUUID();
-        UUID patternId = UUID.randomUUID();
 
         User mockUser = Mockito.mock(User.class);
-        Pattern mockPattern = Mockito.mock(Pattern.class);
-        Mockito.when(mockPattern.getId()).thenReturn(patternId);
 
         Mockito.when(userRepository.findById(userId)).thenReturn(Optional.of(mockUser));
-        Mockito.when(patternRepository.findAllByUserId(userId)).thenReturn(List.of(mockPattern));
 
         userService.deleteUser(userId);
 
-        Mockito.verify(modificationRepository).deleteAllByPatternId(patternId);
+        Mockito.verify(modificationRepository).deleteAllByUserId(userId);
         Mockito.verify(patternRepository).deleteAllByUserId(userId);
         Mockito.verify(emailVerificationCodeRepository).deleteByUserId(userId);
+        Mockito.verify(passwordResetVerificationCodeRepository).deleteByUserId(userId);
         Mockito.verify(userRepository).delete(mockUser);
-    }*/
+    }
 
     @Test
     void testDeleteUser_ThrowsEntityNotFound() {

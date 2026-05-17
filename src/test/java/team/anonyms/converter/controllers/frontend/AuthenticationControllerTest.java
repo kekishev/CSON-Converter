@@ -1,4 +1,4 @@
-package team.anonyms.converter.controllers;
+package team.anonyms.converter.controllers.frontend;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.Cookie;
@@ -7,31 +7,33 @@ import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 
-import team.anonyms.converter.controllers.frontend.AuthenticationController;
+import team.anonyms.converter.controllers.GlobalExceptionHandler;
 import team.anonyms.converter.dto.controller.authentication.AuthenticationControllerDto;
 import team.anonyms.converter.dto.controller.authentication.CredentialsControllerDto;
 import team.anonyms.converter.dto.controller.authentication.LoginResultControllerDto;
+import team.anonyms.converter.dto.controller.authentication.PasswordResetControllerDto;
 import team.anonyms.converter.dto.service.authentication.AuthenticationServiceDto;
 import team.anonyms.converter.dto.service.authentication.CredentialsServiceDto;
 import team.anonyms.converter.dto.service.authentication.LoginResultServiceDto;
+import team.anonyms.converter.dto.service.authentication.PasswordResetServiceDto;
 import team.anonyms.converter.mappers.AuthenticationMapper;
 import team.anonyms.converter.services.frontend.AuthenticationService;
 import team.anonyms.converter.services.frontend.EmailService;
 
 import java.util.UUID;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-// Update needed
 @WebMvcTest(AuthenticationController.class)
 @ContextConfiguration(classes = {AuthenticationController.class, GlobalExceptionHandler.class})
 class AuthenticationControllerTest {
@@ -161,5 +163,56 @@ class AuthenticationControllerTest {
                 .andExpect(status().isNoContent())
                 .andExpect(cookie().maxAge("jwtToken", 0))
                 .andExpect(cookie().value("jwtToken", ""));
+    }
+
+    @Test
+    void testVerifyEmail_Success() throws Exception {
+        java.util.UUID userId = java.util.UUID.randomUUID();
+        String verificationCode = "123456";
+
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(userId, null, java.util.List.of())
+        );
+
+        Mockito.when(authenticationService.verifyEmail(eq(userId), anyString())).thenReturn(true);
+
+        mockMvc.perform(MockMvcRequestBuilders.post("/auth/email/verification")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(verificationCode))
+                .andExpect(status().isOk())
+                .andExpect(MockMvcResultMatchers.content().string("true"));
+    }
+
+    @Test
+    void testSendPasswordResetVerificationCode_Success() throws Exception {
+        String email = "test@gmail.com";
+
+        Mockito.doNothing().when(emailService).sendPasswordResetVerificationCode(anyString());
+
+        mockMvc.perform(MockMvcRequestBuilders.post("/auth/password/reset")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(email))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void testVerifyPasswordReset_Success() throws Exception {
+        PasswordResetControllerDto requestDto =
+                new PasswordResetControllerDto("test@gmail.com", "123456", "newPassword");
+
+        PasswordResetServiceDto serviceDto =
+                new PasswordResetServiceDto("test@gmail.com", "123456", "newPassword");
+
+        Mockito.when(authenticationMapper.passwordResetControllerDtoToService(any(PasswordResetControllerDto.class)))
+                .thenReturn(serviceDto);
+
+        Mockito.when(authenticationService.verifyPasswordReset(any(PasswordResetServiceDto.class)))
+                .thenReturn(true);
+
+        mockMvc.perform(MockMvcRequestBuilders.post("/auth/password/verification")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestDto)))
+                .andExpect(status().isOk())
+                .andExpect(MockMvcResultMatchers.content().string("true"));
     }
 }

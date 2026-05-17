@@ -1,4 +1,4 @@
-package team.anonyms.converter.controllers;
+package team.anonyms.converter.controllers.frontend;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -15,7 +15,6 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import team.anonyms.converter.controllers.frontend.ConversionFrontendController;
 import team.anonyms.converter.services.frontend.ConversionFrontendService;
 
 import java.nio.file.Files;

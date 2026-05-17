@@ -79,13 +79,10 @@ public class ConversionFrontendService {
     /**
      * <p>
      *     This method represents custom conversion from {@link String} to {@link Boolean}.<br>
-     *     <b>The key feature</b> is that it allows to convert '1' to true.
+     *     <b>The key feature</b> is that it converts {@code 1} to {@code true}.
      * </p>
      *
      * @param string any {@link String} value to convert.
-     *
-     * @return {@link Boolean} value of provided {@code string}.
-     * If {@code string} equals '1' this method returns true.
      */
     // Apparently, carry this method out to a new class
     public static Boolean toBoolean(String string) {
@@ -697,99 +694,110 @@ public class ConversionFrontendService {
         }
     }
 
+    /**
+     * Applies {@code pattern} to {@code fieldList}.
+     *
+     * @param fieldsList read data.
+     * @param pattern pattern to apply.
+     *
+     * @return modified {@code fieldsList} after applying {@code pattern}.
+     * If {@code pattern} is null {@code fieldsList} will be returned with no changes.
+     *
+     * @throws IllegalPatternException if pattern contains modification with null or empty {@code oldName}
+     * and {@code newName} fields.
+     */
     private @NonNull List<Map<String, Object>> applyPattern(
-            @NonNull List<Map<String, Object>> rows,
+            @NonNull List<Map<String, Object>> fieldsList,
             @Nullable Pattern pattern
     ) {
         if (pattern == null) {
-            return rows;
+            return fieldsList;
         }
 
         List<Modification> modifications = modificationRepository.findAllByPatternId(pattern.getId());
-        return PatternHandler.applyModifications(rows, modifications);
+        return PatternHandler.applyModifications(fieldsList, modifications);
     }
 
     private static class PatternHandler {
         /**
-         * <p>
-         *     Applies provided pattern to read data.
-         * </p>
+         * Apply {@code modifications} to {@code fieldList}.
          *
-         * @param rows read data.
+         * @param fieldsList read data.
+         * @param modifications modifications to apply.
          *
-         * @return {@code rows} after applying {@code pattern}.
-         * If {@code pattern} is null provided {@code rows} will be returned.
-         *
-         * @throws IllegalPatternException if pattern contains modification with null or empty {@code oldName} and {@code newName} fields.
+         * @throws IllegalPatternException if pattern contains modification with null or empty {@code oldName}
+         * and {@code newName} fields.
          */
-        // add more checks for modification. Also add in creation of patterns.
         public static @NonNull List<Map<String, Object>> applyModifications(
-                @NonNull List<Map<String, Object>> rows,
+                @NonNull List<Map<String, Object>> fieldsList,
                 @NonNull List<Modification> modifications
         ) {
-            for (Map<String, Object> row : rows) {
+            for (Map<String, Object> fields : fieldsList) {
                 for (Modification modification : modifications) {
-                    ApplyingModificationsResult rowOnDeletion = delete(row, modification);
-                    if (rowOnDeletion.success()) {
-                        row = delete(row, modification).row();
+                    DeletingFieldResult deletionAttempt = deleteField(fields, modification);
+                    if (deletionAttempt.isSucceeded()) {
+                        fields = deletionAttempt.fields();
                         continue;
                     }
 
-                    row = modify(row, modification);
+                    fields = alterField(fields, modification);
                 }
             }
 
-            return rows;
+            return fieldsList;
         }
         
-        private static @NonNull ApplyingModificationsResult delete(
-                @NonNull Map<String, Object> row,
+        private static @NonNull DeletingFieldResult deleteField(
+                @NonNull Map<String, Object> fields,
                 @NonNull Modification modification
         ) {
-            if (row.containsKey(modification.getOldName()) && (modification.getNewName() == null)
+            if (fields.containsKey(modification.getOldName()) && (modification.getNewName() == null)
                     && (modification.getNewType() == null) && (modification.getNewValue() == null)
             ) {
-                row.remove(modification.getOldName());
-                return new ApplyingModificationsResult(row, true);
+                fields.remove(modification.getOldName());
+                return new DeletingFieldResult(fields, true);
             }
 
-            return new ApplyingModificationsResult(row, false);
+            return new DeletingFieldResult(fields, false);
         }
 
-        private static @NonNull Map<String, Object> modify(
-                @NonNull Map<String, Object> row,
+        /**
+         * Changes value, name and type of field.
+         */
+        private static @NonNull Map<String, Object> alterField(
+                @NonNull Map<String, Object> fields,
                 @NonNull Modification modification
         ) {
             String fieldNameForTypeConversion = null;
-            boolean isAddingIteration = false; // flag
+            boolean isNewFieldAdded = false;
 
-            ApplyingModificationsResult rowOnAddition = add(row, modification);
-            if (rowOnAddition.success()) {
-                row = rowOnAddition.row();
+            AddingFieldResult addingAttempt = addField(fields, modification);
+            if (addingAttempt.isSucceeded()) {
+                fields = addingAttempt.fields();
 
-                isAddingIteration = true;
+                isNewFieldAdded = true;
                 fieldNameForTypeConversion = modification.getNewName();
             }
 
-            RowAlteringResult rowOnAltering = alter(row, modification);
-            if (rowOnAltering.key() != null) {
-                row = rowOnAltering.row();
-                fieldNameForTypeConversion = rowOnAltering.key();
+            if (!isNewFieldAdded) {
+                UpdateFieldResult updatingAttempt = updateField(fields, modification);
+
+                fields = updatingAttempt.fields();
+                fieldNameForTypeConversion = updatingAttempt.fieldNameForTypeConversion();
             }
 
-            return convert(
-                    row,
-                    isAddingIteration,
+            return convertField(
+                    fields,
                     fieldNameForTypeConversion,
                     modification.getNewType()
             );
         }
 
-        private static @NonNull ApplyingModificationsResult add(
-                @NonNull Map<String, Object> row,
+        private static @NonNull AddingFieldResult addField(
+                @NonNull Map<String, Object> fields,
                 @NonNull Modification modification
         ) {
-            boolean success = false;
+            boolean isSucceeded = false;
 
             if (modification.getOldName() == null) {
                 if (modification.getNewName() == null) {
@@ -799,86 +807,91 @@ public class ConversionFrontendService {
                     );
                 }
 
-                row.put(modification.getNewName(), modification.getNewValue());
-                success = true;
+                fields.put(modification.getNewName(), modification.getNewValue());
+                isSucceeded = true;
             }
 
-            return new ApplyingModificationsResult(row, success);
+            return new AddingFieldResult(fields, isSucceeded);
         }
 
-        private static @NonNull RowAlteringResult alter(
-                @NonNull Map<String, Object> row,
+        private static @NonNull UpdateFieldResult updateField(
+                @NonNull Map<String, Object> fields,
                 @NonNull Modification modification
         ) {
-            String key = null;
+            String fieldNameForTypeConversion = null;
 
-            // Altering existing fields
-            if (row.containsKey(modification.getOldName())) {
-                key = modification.getOldName();
+            // Updating existing fields
+            if (fields.containsKey(modification.getOldName())) {
+                fieldNameForTypeConversion = modification.getOldName();
 
                 // Changing values of fields
                 if (modification.getNewValue() != null) {
-                    row.put(modification.getOldName(), modification.getNewValue());
+                    fields.put(modification.getOldName(), modification.getNewValue());
                 }
 
                 // Changing names of fields
                 if (modification.getNewName() != null) {
-                    Object value = row.get(modification.getOldName());
-                    row.remove(modification.getOldName());
-                    row.put(modification.getNewName(), value);
+                    Object value = fields.get(modification.getOldName());
+                    fields.remove(modification.getOldName());
+                    fields.put(modification.getNewName(), value);
 
-                    key = modification.getNewName();
+                    fieldNameForTypeConversion = modification.getNewName();
                 }
             }
 
-            return new RowAlteringResult(row, key);
+            return new UpdateFieldResult(fields, fieldNameForTypeConversion);
         }
 
-        private static @NonNull Map<String, Object> convert(
-                @NonNull Map<String, Object> row,
-                @NonNull Boolean isAddingIteration,
-                @Nullable String key,
+        private static @NonNull Map<String, Object> convertField(
+                @NonNull Map<String, Object> fields,
+                @Nullable String fieldName,
                 @Nullable String newType
         ) {
             if (newType == null) {
-                return row;
+                return fields;
             }
 
-            if (row.containsKey(key) || isAddingIteration) {
-                Object value = row.get(key);
+            if (fields.containsKey(fieldName)) {
+                Object value = fields.get(fieldName);
 
                 if (value == null) {
-                    return row;
+                    return fields;
                 }
 
                 switch (newType) {
                     case "Integer":
-                        row.put(key, Integer.parseInt(value.toString()));
+                        fields.put(fieldName, Integer.parseInt(value.toString()));
                         break;
                     case "Float":
-                        row.put(key, Float.parseFloat(value.toString()));
+                        fields.put(fieldName, Float.parseFloat(value.toString()));
                         break;
                     case "Boolean":
-                        row.put(key, toBoolean(value.toString()));
+                        fields.put(fieldName, toBoolean(value.toString()));
                         break;
                     default:
-                        row.put(key, value.toString());
+                        fields.put(fieldName, value.toString());
                         break;
                 }
             }
 
-            return row;
+            return fields;
         }
 
-        private record ApplyingModificationsResult(
-                Map<String, Object> row, 
-                boolean success
+        private record AddingFieldResult(
+                Map<String, Object> fields,
+                boolean isSucceeded
         ) {
         }
 
-        private record RowAlteringResult(
-                Map<String, Object> row,
-                String key
+        private record UpdateFieldResult(
+                Map<String, Object> fields,
+                String fieldNameForTypeConversion
+        ) {
+        }
+
+        private record DeletingFieldResult(
+                Map<String, Object> fields,
+                boolean isSucceeded
         ) {
         }
     }
