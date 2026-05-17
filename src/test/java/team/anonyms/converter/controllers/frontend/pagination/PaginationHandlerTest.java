@@ -20,7 +20,7 @@ class PaginationHandlerTest {
 
     @Test
     void testMakeSlice_FirstPage_Success() {
-        List<String> result = paginationHandler.makeSliceFromList(testData, 1, 3);
+        List<String> result = paginationHandler.makeSlice(testData, 1, 3);
 
         assertEquals(3, result.size());
         assertEquals(List.of("A", "B", "C"), result);
@@ -28,7 +28,7 @@ class PaginationHandlerTest {
 
     @Test
     void testMakeSlice_MiddlePage_Success() {
-        List<String> result = paginationHandler.makeSliceFromList(testData, 2, 3);
+        List<String> result = paginationHandler.makeSlice(testData, 2, 3);
 
         assertEquals(3, result.size());
         assertEquals(List.of("D", "E", "F"), result);
@@ -36,7 +36,7 @@ class PaginationHandlerTest {
 
     @Test
     void testMakeSlice_LastPagePartial_Success() {
-        List<String> result = paginationHandler.makeSliceFromList(testData, 4, 3);
+        List<String> result = paginationHandler.makeSlice(testData, 4, 3);
 
         assertEquals(1, result.size());
         assertEquals(List.of("J"), result);
@@ -44,7 +44,7 @@ class PaginationHandlerTest {
 
     @Test
     void testMakeSlice_ExactLastPage_Success() {
-        List<String> result = paginationHandler.makeSliceFromList(testData, 2, 5);
+        List<String> result = paginationHandler.makeSlice(testData, 2, 5);
 
         assertEquals(5, result.size());
         assertEquals(List.of("F", "G", "H", "I", "J"), result);
@@ -52,21 +52,21 @@ class PaginationHandlerTest {
 
     @Test
     void testMakeSlice_OutOfRange_ReturnsEmptyList() {
-        List<String> result = paginationHandler.makeSliceFromList(testData, 5, 3);
+        List<String> result = paginationHandler.makeSlice(testData, 5, 3);
 
         assertTrue(result.isEmpty());
     }
 
     @Test
     void testMakeSlice_EmptyInputList_ReturnsEmptyList() {
-        List<String> result = paginationHandler.makeSliceFromList(List.of(), 1, 3);
+        List<String> result = paginationHandler.makeSlice(List.of(), 1, 3);
 
         assertTrue(result.isEmpty());
     }
 
     @Test
     void testMakeSlice_OffsetLessThanOne_ThrowsException() {
-        List<String> result = paginationHandler.makeSliceFromList(List.of(), 0, 3);
+        List<String> result = paginationHandler.makeSlice(List.of(), 0, 3);
 
         assertTrue(result.isEmpty());
     }

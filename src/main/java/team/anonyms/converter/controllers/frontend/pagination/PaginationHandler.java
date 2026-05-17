@@ -8,46 +8,43 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * @param <T> the type of elements to paginate.
+ * @param <T> a type of elements to paginate.
  */
 @Component
 public class PaginationHandler<T> {
     private static final Logger logger = LoggerFactory.getLogger(PaginationHandler.class);
 
     /**
-     * @param objectsToMakeSlice any objects to make slice.
+     * @param objectsList {@link List} of any objects to make slice.
      * @param offset number of page.
      * @param limit number of elements per page.
      *
-     * @return a slice of {@code objectsToMakeSlice}. Note, that this method returns the empty slice
-     * if {@code offset} is negative or is more than the offset of the last available slice of provided elements.
+     * @return a slice of {@code objectsList}.
+     * Note, that this method returns the empty slice if {@code offset} is negative or
+     * is more than the offset the last non-empty slice of {@code objectsList}.
      */
-    public List<T> makeSliceFromList(List<T> objectsToMakeSlice, int offset, int limit) {
+    public List<T> makeSlice(List<T> objectsList, int offset, int limit) {
         List<T> slice = new ArrayList<>();
 
-        // Had to add this to prevent java.util.NoSuchElementException
-        if (objectsToMakeSlice == null || objectsToMakeSlice.isEmpty()) {
+        if (objectsList == null || objectsList.isEmpty()) {
             return slice;
         }
 
         if (offset < 1) {
             logger.info("Offset must be positive; offset={}", offset);
-            // Had to add this to prevent java.lang.IndexOutOfBoundsException
             return slice;
         }
 
-        if (limit * (offset - 1) > objectsToMakeSlice.size()) {
+        if (limit * (offset - 1) > objectsList.size()) {
             logger.info("Number of page is out of range of provided elements; offset={}; objectsSize={}",
-                    offset, objectsToMakeSlice.size());
+                    offset, objectsList.size());
         }
 
-        if (limit * (offset) <= objectsToMakeSlice.size()) {
-            slice = objectsToMakeSlice.subList(limit * (offset - 1), limit * offset);
+        if (limit * (offset) <= objectsList.size()) {
+            slice = objectsList.subList(limit * (offset - 1), limit * offset);
         } else {
-            if (limit * (offset - 1) < objectsToMakeSlice.size()) {
-                slice = objectsToMakeSlice.subList(limit * (offset - 1), objectsToMakeSlice.size());
-            } else if (limit * (offset - 1) == objectsToMakeSlice.size()) {
-                slice.add(objectsToMakeSlice.getLast());
+            if (limit * (offset - 1) < objectsList.size()) {
+                slice = objectsList.subList(limit * (offset - 1), objectsList.size());
             }
         }
 

@@ -49,7 +49,7 @@ public class PatternController {
                 .map(patternMapper::patternServiceDtoToControllerDto)
                 .toList();
 
-        return ResponseEntity.ok(paginationHandler.makeSliceFromList(allPatterns, offset, limit));
+        return ResponseEntity.ok(paginationHandler.makeSlice(allPatterns, offset, limit));
     }
 
     @GetMapping
