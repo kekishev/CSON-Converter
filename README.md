@@ -1,464 +1,69 @@
-# CSON Converter — Backend
+# CSON Converter
 
+<p>
 A REST API service for converting structured data files between **JSON↔XML↔CSV** formats,
-with support for pattern-based field transformations applied during conversion.
+with support for applying patterns during conversion.
+</p>
+
+<p>
+<b>Patterns</b> are basically a list of modifications they consist of. <b>Modifications</b> are specific settings,
+which allows you to update, add or delete fields in converter file during conversion.
+
+To use patterns you have to be authenticated and verified (your email must be verified).
+</p>
 
 ---
 
-## Table of Contents
+## Patterns
 
-- [Architecture](#architecture)
-- [API Endpoints](#api-endpoints)
-- [Error Responses](#error-responses)
+A pattern is a named, reusable set of modifications that is applied to every record in a file during conversion.
+You create a pattern and then select it in the main page while attaching a file for conversion — 
+the converter runs all its modifications on each row before writing the output.
 
----
-
-## Architecture
-
-The project follows a three-layered architecture:
-
-```
-HTTP Request
-    │
-    ▼
-RequestFilter (validates JWT token, populates SecurityContext)
-    │
-    ▼
-Controllers (controllers/frontend/, controllers/api/)
-    │  DTO mapping via Mappers
-    ▼
-Services (services/frontend/, services/api/)
-    │  Entity mapping via Mappers
-    ▼
-Repositories (Spring Data JPA)
-    │
-    ▼
-Database (PostgreSQL)
-```
-
-### Layer responsibilities
-
-- **Controllers** — parse HTTP requests, delegate to services, serialize responses. Split into two groups:
-  - `frontend/` — multipart file upload endpoints + auth + user/pattern/modification CRUD.
-CORS configured for `https://cson.site`.
-  - `api/` — direct body-based JSON↔XML conversion.
-- **Services** — business logic: file parsing, format conversion, pattern application, user authentication, JWT generation.
-- **Repositories** — Spring Data JPA repositories for `User`, `Pattern`, `Modification`, `VerificationCode` entities.
-- **DTOs** — separate controller DTOs (exchanged with clients) and service DTOs (passed between layers).
-  Creation and update operations use dedicated `ToCreate` / `ToUpdate` variants.
-- **Mappers** — bidirectional conversion between entities and DTOs, and between service-layer DTOs and controller-layer DTOs.
+Patterns belong to you: only you can see, edit, or delete your own patterns.
 
 ---
 
-## API Endpoints
+## Modifications
 
-All endpoints are served under the base path `/api/v1`
+A modification is a single field-level rule inside a pattern. Each modification targets a field by its original name.
+Modifications can only be added or updated through their parent pattern.
 
-### Authentication — `/auth`
+**Table of all possible correct modifications**
 
-#### `POST /auth`
-Log in with credentials. The existing JWT is read from the `jwtToken` cookie —
-if still valid, it is reused; otherwise a new one is generated.
+| What it does                                    | Old Field Name | New Field Name | New Field Value | New Field Type |
+|-------------------------------------------------|----------------|----------------|-----------------|----------------|
+| Add a new field                                 | -              | +              | -               | -              |
+| Add a new field with a new value                | -              | +              | +               | -              |
+| Add a new field with a new type                 | -              | +              | -               | +              |
+| Add a new field with a new value and a new type | -              | +              | +               | +              |
+| Update value of a field                         | +              | -              | +               | -              |
+| Update type of a field                          | +              | -              | -               | +              |
+| Update type and value of a field                | -              | +              | +               | +              |
+| Rename a field                                  | +              | +              | -               | -              |
+| Rename and update value of a field              | +              | +              | +               | -              |
+| Rename and update type of a field               | +              | +              | -               | +              |
+| Rename and update value and type of a field     | +              | +              | +               | +              |
+| Delete a field                                  | +              | -              | -               | -              |
 
-**Request body** (`application/json`):
-```json
-{
-  "email": "user@example.com",
-  "password": "secret"
-}
-```
+Note, that all possible values for New Field Type are (`Integer`, `Float`, `Boolean`) and `String` by default.
 
-**Response `200 OK`** — sets `jwtToken` `HttpOnly; Secure; SameSite=Strict` cookie (4 h) and returns:
-```json
-{
-  "success": true,
-  "username": "john",
-  "email": "john@example.com",
-  "userId": "uuid"
-}
-```
+**Table of all possible incorrect modifications**
 
-**Response `400 Bad Request`** — invalid credentials.
+| Old Field Name | New Field Name | New Field Value | New Field Type |
+|----------------|----------------|-----------------|----------------|
+| -              | -              | -               | -              |
+| -              | -              | +               | -              |
+| -              | -              | -               | +              |
+| -              | -              | +               | +              |
 
----
-
-#### `POST /auth/email/verification`
-Submit the 6-digit code that was emailed after registration. Requires authentication.
-
-**Request body** (`text/plain`): the 6-digit code string.
-
-**Response `200 OK`**:
-```json
-true
-```
-Returns `false` if the code is wrong or expired.
-
-**Response `400 Bad Request`** (`EMAIL ALREADY VERIFIED`) — email is already verified.
+All these exceptions will cause `400 Bad Request` while conversion. This means that you potentially can create patterns
+with such modifications or update existing patterns with them, but it is meaningless since you cannot use it.
 
 ---
 
-#### `POST /auth/email/resending`
-Request a new email verification code. Requires authentication.
+## Full Project Documentation
 
-**Response `204 No Content`**
+Full project documentation — request/response schemas, technical details and architecture overview:
 
----
-
-#### `POST /auth/password/reset`
-Request a password-reset verification code to be sent to the provided email address.
-No authentication required.
-
-**Request body** (`text/plain`): the email address.
-
-**Response `204 No Content`**
-
----
-
-#### `POST /auth/password/verification`
-Verify the password-reset code and set a new password.
-No authentication required.
-
-**Request body** (`application/json`):
-```json
-{
-  "email": "user@example.com",
-  "verificationCode": "123456",
-  "newPassword": "newSecret"
-}
-```
-
-**Response `200 OK`**:
-```json
-true
-```
-Returns `false` if the code is wrong or expired.
-
----
-
-#### `DELETE /auth`
-Log out — clears the `jwtToken` cookie.
-
-**Response `204 No Content`**
-
----
-
-### Users — `/users`
-
-#### `POST /users`
-Create a new account. Triggers a verification email to the provided address.
-
-**Request body** (`application/json`):
-```json
-{
-  "username": "john",
-  "email": "john@example.com",
-  "password": "secret"
-}
-```
-
-**Response `201 Created`** — sets `jwtToken` `HttpOnly; Secure; SameSite=Strict` cookie and returns:
-```json
-{
-  "success": true,
-  "username": "john",
-  "email": "john@example.com",
-  "userId": "uuid"
-}
-```
-
-**Response `400 Bad Request`** (`EMAIL EXISTS`) — email already registered.
-
-#### `PUT /users`
-Update the current user's username and/or password. The user is identified by the JWT. Requires authentication.
-
-**Request body** (`application/json`):
-```json
-{
-  "username": "new_name",
-  "password": "newPassword"
-}
-```
-
-**Response `200 OK`**:
-```json
-{
-  "id": "uuid",
-  "username": "new_name",
-  "email": "current@example.com",
-  "isVerified": true
-}
-```
-
-**Response `404 Not Found`** — user not found.
-
----
-
-#### `PUT /users/email`
-Update the current user's email address. The user is identified by the JWT. Requires authentication.
-After updating, the new address is unverified and a verification email is sent automatically.
-
-**Request body** (`text/plain`): the new email address.
-
-**Response `200 OK`**:
-```json
-{
-  "id": "uuid",
-  "username": "john",
-  "email": "new@example.com",
-  "isVerified": false
-}
-```
-
-**Response `404 Not Found`** — user not found.
-
----
-
-#### `DELETE /users`
-Delete the current user's account. The user is identified by the JWT. Requires authentication.
-
-**Response `204 No Content`**
-
-**Response `404 Not Found`** — user not found.
-
----
-
-### Patterns — `/patterns`
-
-All pattern endpoints require authentication. The user is identified by the JWT cookie.
-
-#### `GET /patterns/{limit}/{offset}`
-Get a paginated slice of patterns belonging to the authenticated user.
-
-**Path variables:**
-- `limit` — maximum number of items to return
-- `offset` — number of items to skip
-
-**Response `200 OK`**:
-```json
-[
-  { 
-    "id": "uuid",
-    "name": "My Pattern"
-  },
-  {
-    "id": "uuid",
-    "name": "Another Pattern"
-  }
-]
-```
-
----
-
-#### `GET /patterns`
-Get the total number of patterns belonging to the authenticated user.
-
-**Response `200 OK`**:
-```json
-5
-```
-
----
-
-#### `POST /patterns`
-Create a new pattern for the authenticated user.
-
-**Request body** (`application/json`):
-```json
-{
-  "name": "My Pattern",
-  "modifications": [
-    {
-      "oldName": "field",
-      "newName": "renamed field",
-      "newType": null,
-      "newValue": null
-    }
-  ]
-}
-```
-
-**Response `201 Created`**:
-```json
-{
-  "id": "uuid",
-  "name": "My Pattern"
-}
-```
-
----
-
-#### `PUT /patterns`
-Update an existing pattern. The `id` must be present in the body. Requires ownership — the pattern must belong to the authenticated user.
-Note, that this API endpoint is the only way to update modifications.
-Modifications are updated only through updating a pattern they belong to.
-
-**Request body** (`application/json`):
-```json
-{
-  "id": "uuid",
-  "name": "Updated Pattern",
-  "modifications": [
-    {
-      "id": "uuid",
-      "oldName": "field",
-      "newName": "renamed field",
-      "newType": null,
-      "newValue": null
-    }
-  ]
-}
-```
-
-**Response `200 OK`**:
-```json
-{ 
-  "id": "uuid",
-  "name": "Updated Pattern"
-}
-```
-
-**Response `403 Forbidden`** — pattern belongs to another user.
-
-**Response `404 Not Found`** — pattern not found.
-
----
-
-#### `DELETE /patterns/{patternId}`
-Delete a pattern and all its modifications. Requires ownership — the pattern must belong to the authenticated user.
-
-**Path variable:** `patternId` (UUID)
-
-**Response `204 No Content`**
-
-**Response `403 Forbidden`** — pattern belongs to another user.
-
-**Response `404 Not Found`** — pattern not found.
-
----
-
-### Modifications — `/modifications`
-
-All modification endpoints require authentication. Ownership is verified — the pattern must belong to the authenticated user.
-
-#### `GET /modifications/{patternId}/{limit}/{offset}`
-Get a paginated slice of modifications belonging to a pattern.
-
-**Path variables:**
-- `patternId` — UUID of the pattern
-- `limit` — maximum number of items to return
-- `offset` — number of items to skip
-
-**Response `200 OK`**:
-```json
-[
-  {
-    "id": "uuid",
-    "oldName": "field",
-    "newName": "renamed field",
-    "newType": null,
-    "newValue": null
-  }
-]
-```
-
-**Response `403 Forbidden`** — pattern belongs to another user.
-
-**Response `404 Not Found`** — pattern not found.
-
----
-
-#### `GET /modifications/{patternId}`
-Get the total number of modifications belonging to a pattern.
-
-**Path variable:** `patternId` (UUID)
-
-**Response `200 OK`**:
-```json
-3
-```
-
-**Response `403 Forbidden`** — pattern belongs to another user.
-
-**Response `404 Not Found`** — pattern not found.
-
----
-
-### File Conversion — `/conversion`
-
-No authentication required. All endpoints consume `multipart/form-data` and stream the converted file back as an attachment.
-
-**Multipart form part:**
-
-| Part   | Type            | Required | Description               |
-|--------|-----------------|----------|---------------------------|
-| `file` | `multipart/form-data` part | yes | The source file to convert |
-
-**Query parameter:**
-
-| Parameter | Type   | Required | Description |
-|-----------|--------|----------|-------------|
-| `pattern` | UUID   | no       | ID of a saved pattern to apply during conversion. When provided, each row of the data is transformed by the pattern's modifications (rename, retype, reassign, add, or delete fields) before the output is written. If omitted, the file is converted as-is. |
-
-**Common error responses:**
-- `400 Bad Request` — file extension does not match the declared source format.
-- `500 Internal Server Error` — I/O error during conversion.
-
-| Endpoint                    | Source format | Target format | Response `Content-Type`    |
-|-----------------------------|---------------|---------------|----------------------------|
-| `POST /conversion/json/csv` | `.json`       | `.csv`        | `text/csv`                 |
-| `POST /conversion/csv/json` | `.csv`        | `.json`       | `application/octet-stream` |
-| `POST /conversion/json/xml` | `.json`       | `.xml`        | `application/octet-stream` |
-| `POST /conversion/xml/json` | `.xml`        | `.json`       | `application/octet-stream` |
-| `POST /conversion/xml/csv`  | `.xml`        | `.csv`        | `text/csv`                 |
-| `POST /conversion/csv/xml`  | `.csv`        | `.xml`        | `application/octet-stream` |
-
-All conversion responses include a `Content-Disposition: attachment; filename="<original_name>.<target_format>"` header.
-
----
-
-### Direct Conversion API — `/direct/conversion`
-
-No authentication required. Accepts and returns raw content bodies.
-
-#### `POST /direct/conversion/json/xml`
-Convert a JSON body to XML.
-
-**Request:** `Content-Type: application/json` — any JSON object.
-
-**Response `200 OK`:** `Content-Type: application/xml` — XML string.
-
----
-
-#### `POST /direct/conversion/xml/json`
-Convert an XML body to JSON.
-
-**Request:** `Content-Type: application/xml` — any XML document.
-
-**Response `200 OK`:** `Content-Type: application/json` — JSON string.
-
----
-
-## Error Responses
-
-All unhandled exceptions are caught by `GlobalExceptionHandler`. The mapping is:
-
-| Exception                        | HTTP Status                 | Response body                              |
-|----------------------------------|-----------------------------|--------------------------------------------|
-| `EntityNotFoundException`        | `404 Not Found`             | empty                                      |
-| `UnsupportedExtensionException`  | `400 Bad Request`           | empty                                      |
-| `IllegalArgumentException`       | `400 Bad Request`           | empty                                      |
-| `NullPointerException`           | `500 Internal Server Error` | empty                                      |
-| `CredentialException`            | `400 Bad Request`           | JSON — `message: "CREDENTIAL"`             |
-| `IllegalPatternException`        | `400 Bad Request`           | JSON — `message: "PATTERN"`                |
-| `EmailAlreadyExistsException`    | `400 Bad Request`           | JSON — `message: "EMAIL ALREADY EXISTS"`   |
-| `EmailAlreadyVerifiedException`  | `400 Bad Request`           | JSON — `message: "EMAIL ALREADY VERIFIED"` |
-| `AccessDeniedException`          | `403 Forbidden`             | JSON — `message: "ACCESS DENIED"`          |
-
-Exceptions that return a JSON body use the following envelope (defined in `ExceptionResponse`):
-
-```json
-{
-  "message": "CREDENTIAL",
-  "time": "2025-01-01T00:00:00Z"
-}
-```
+**[docs/PROJECT.md](docs/PROJECT.md)**
