@@ -29,6 +29,9 @@ public class ModificationService {
         this.modificationMapper = modificationMapper;
     }
 
+    /**
+     * TODO: adapt {@code getAllPatternsByUserId} for lazy loading.
+     */
     public List<ModificationServiceDto> getAllModificationsByPatternId(UUID patternId, UUID userId) {
         Optional<Pattern> patternOptional = patternRepository.findById(patternId);
         if (patternOptional.isEmpty()) {

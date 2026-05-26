@@ -56,7 +56,7 @@ public class AuthenticationService {
 
     /**
      * @param credentials login credentials.
-     * @param jwtToken jwtToken extracted from cookie.
+     * @param jwtToken JWT token extracted from cookie.
      *
      * @throws CredentialException if {@code jwtToken} is null and
      * either {@code credentials.email()} or {@code credentials.password()} is null.
@@ -91,10 +91,10 @@ public class AuthenticationService {
                 throw new EntityNotFoundException("User not found; userId=" + userId);
             }
 
-            User user = userOptional.get();
-            user.setIsVerified(true);
+            User userVerified = userOptional.get();
+            userVerified.setIsVerified(true);
 
-            userRepository.save(user);
+            userRepository.save(userVerified);
             emailVerificationCodeRepository.delete(actualEmailVerificationCode);
 
             return true;
@@ -110,19 +110,19 @@ public class AuthenticationService {
         }
 
         User user = userOptional.get();
-        Optional<PasswordResetVerificationCode> verificationCodeOptional = passwordResetVerificationCodeRepository
-                .findByUserId(user.getId());
-        if (verificationCodeOptional.isEmpty()) {
+        Optional<PasswordResetVerificationCode> passwordResetVerificationCodeOptional =
+                passwordResetVerificationCodeRepository.findByUserId(user.getId());
+        if (passwordResetVerificationCodeOptional.isEmpty()) {
             throw new EntityNotFoundException("Password reset verification code not found; userId=" + user.getId());
         }
 
-        PasswordResetVerificationCode actualVerificationCode = verificationCodeOptional.get();
-        if (passwordResetServiceDto.verificationCode().equals(actualVerificationCode.getCode())
-                && actualVerificationCode.getExpiration().isAfter(Instant.now())) {
+        PasswordResetVerificationCode actualPasswordResetVerificationCode = passwordResetVerificationCodeOptional.get();
+        if (passwordResetServiceDto.verificationCode().equals(actualPasswordResetVerificationCode.getCode())
+                && actualPasswordResetVerificationCode.getExpiration().isAfter(Instant.now())) {
             user.setPassword(passwordEncoder.encode(passwordResetServiceDto.newPassword()));
 
             userRepository.save(user);
-            passwordResetVerificationCodeRepository.delete(actualVerificationCode);
+            passwordResetVerificationCodeRepository.delete(actualPasswordResetVerificationCode);
 
             return true;
         } else {

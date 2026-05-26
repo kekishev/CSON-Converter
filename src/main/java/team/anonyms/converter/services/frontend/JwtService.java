@@ -17,9 +17,7 @@ import java.util.Date;
 import java.util.UUID;
 
 /**
- * <p>
- *     {@code JwtService} is dedicated to handle most of JWT-related things.
- * </p>
+ * {@code JwtService} is dedicated to handle most of JWT-related things.
  */
 @Service
 public class JwtService {
@@ -35,9 +33,7 @@ public class JwtService {
     }
 
     /**
-     * <p>
-     *     Generates new JWT token based on user ID.
-     * </p>
+     * Generates new JWT token based on user ID.
      *
      * @param userId user ID.
      *
@@ -45,6 +41,7 @@ public class JwtService {
      */
     public String generate(UUID userId) {
         Instant now = Instant.now();
+
         return Jwts.builder()
                 .subject(userId.toString())
                 .issuedAt(Date.from(now))
@@ -54,9 +51,7 @@ public class JwtService {
     }
 
     /**
-     * <p>
-     *     Extracts user ID from JWT token.
-     * </p>
+     * Extracts user ID from JWT token.
      *
      * @param token JWT token
      *
@@ -69,8 +64,8 @@ public class JwtService {
     /**
      * @param jwtToken any provided {@link String} instance.
      *
-     * @return true if provided {@code jwtToken} is valid, false if {@code jwtToken} is not valid, or it is
-     * a string with whitespaces only, empty string, or {@code jwtToken} is null.
+     * @return {@code true} if provided {@code jwtToken} is valid, {@code false} if {@code jwtToken} is not valid,
+     * or it is a string with whitespaces only, empty string, or {@code jwtToken} is null.
      */
     public Boolean isValid(@Nullable String jwtToken) {
         if (jwtToken == null || jwtToken.trim().isEmpty()) {
@@ -85,7 +80,6 @@ public class JwtService {
         }
     }
 
-    @SuppressWarnings(value = {"unused"})
     private Claims getClaims(String token) {
         return Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
     }

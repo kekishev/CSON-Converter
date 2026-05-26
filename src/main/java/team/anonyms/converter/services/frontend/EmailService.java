@@ -53,7 +53,7 @@ public class EmailService {
 
         User user = userOptional.get();
         if (user.getIsVerified()) {
-            throw new EmailAlreadyVerifiedException("Email already verified");
+            throw new EmailAlreadyVerifiedException("Email already verified; userId=" + user.getId());
         }
 
         sendEmailVerificationCode(user);
@@ -74,16 +74,6 @@ public class EmailService {
         mailMessage.setText("Your code is: " + emailVerificationCode);
 
         mailSender.send(mailMessage);
-    }
-
-    private void saveEmailVerificationCode(String code, User user) {
-        EmailVerificationCode emailVerificationCode = EmailVerificationCode.builder()
-                .code(code)
-                .expiration(Instant.now().plus(15, ChronoUnit.MINUTES))
-                .user(user)
-                .build();
-
-        emailVerificationCodeRepository.save(emailVerificationCode);
     }
 
     public void sendPasswordResetVerificationCode(String email) {
@@ -112,6 +102,25 @@ public class EmailService {
         mailSender.send(mailMessage);
     }
 
+    private String generateVerificationCode() {
+        StringBuilder code = new StringBuilder(6);
+        for (int i = 0; i < 6; i++) {
+            code.append(SYMBOLS.charAt(RANDOM.nextInt(SYMBOLS.length())));
+        }
+
+        return code.toString();
+    }
+
+    private void saveEmailVerificationCode(String code, User user) {
+        EmailVerificationCode emailVerificationCode = EmailVerificationCode.builder()
+                .code(code)
+                .expiration(Instant.now().plus(15, ChronoUnit.MINUTES))
+                .user(user)
+                .build();
+
+        emailVerificationCodeRepository.save(emailVerificationCode);
+    }
+
     private void savePasswordResetVerificationCode(String code, User user) {
         PasswordResetVerificationCode passwordResetVerificationCode = PasswordResetVerificationCode.builder()
                 .code(code)
@@ -120,14 +129,5 @@ public class EmailService {
                 .build();
 
         passwordResetVerificationCodeRepository.save(passwordResetVerificationCode);
-    }
-
-    private String generateVerificationCode() {
-        StringBuilder code = new StringBuilder(6);
-        for (int i = 0; i < 6; i++) {
-            code.append(SYMBOLS.charAt(RANDOM.nextInt(SYMBOLS.length())));
-        }
-
-        return code.toString();
     }
 }
