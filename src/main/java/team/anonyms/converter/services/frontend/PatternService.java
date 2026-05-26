@@ -42,6 +42,9 @@ public class PatternService {
         this.modificationMapper = modificationMapper;
     }
 
+    /**
+     * TODO: adapt {@code getAllPatternsByUserId} for lazy loading.
+     */
     public List<PatternServiceDto> getAllPatternsByUserId(UUID userId) {
         if (!userRepository.existsById(userId)) {
             throw new EntityNotFoundException("User not found; id=" + userId);

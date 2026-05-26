@@ -17,7 +17,7 @@ services:
       EMAIL_PASSWORD: ${EMAIL_PASSWORD}
       EMAIL_SENDER_ADDRESS: ${EMAIL_SENDER_ADDRESS}
     volumes:
-      - /root/projects/converter/logs/backend:/logs
+      - /root/projects/cson-converter/logs/backend:/logs
 
   db:
     image: postgres:15

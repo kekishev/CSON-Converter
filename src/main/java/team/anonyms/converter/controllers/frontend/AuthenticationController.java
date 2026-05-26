@@ -55,6 +55,9 @@ public class AuthenticationController {
                 .build();
     }
 
+    /*
+     * TODO: carry logic of refreshing session to new different API endpoint like /me
+     */
     @PostMapping
     public ResponseEntity<LoginResultControllerDto> login(
             @RequestBody CredentialsControllerDto credentials,

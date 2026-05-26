@@ -27,6 +27,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 
+/*
+TODO: add option of choosing separator for CSV format
+ */
 @Service
 public class ConversionFrontendService {
     private static final Logger logger = LoggerFactory.getLogger(ConversionFrontendService.class);
@@ -54,9 +57,7 @@ public class ConversionFrontendService {
     }
 
     /**
-     * <p>
-     *     Counts number of occurrences for provided string and substring.
-     * </p>
+     * Counts number of occurrences for provided string and substring.
      *
      * @param string main string.
      * @param substring substring.
@@ -112,8 +113,7 @@ public class ConversionFrontendService {
      *
      * @return path to converted CSV file.
      *
-     * @throws IllegalArgumentException if {@code jsonFile} consists of
-     * unsupported structure for conversion from JSON to CSV.
+     * @throws IllegalArgumentException if an incorrect JSON structure was provided in {@code jsonFile}.
      * @throws NullPointerException if filename is null.
      * @throws UnsupportedExtensionException if {@code jsonFile} was provided without '.json' extension.
      * @throws EntityNotFoundException if pattern is not found in database by {@code patternId}.
@@ -126,10 +126,7 @@ public class ConversionFrontendService {
     ) throws IOException {
         validateArgumentsForConversion(jsonFile, ".json");
 
-        // Possible vulnerability here
-        // Create temporarily CSV file for writing converted data
-        String filenameWithoutExtension = getFilenameWithoutExtension(jsonFile, ".json");
-        Path csvPath = Files.createTempFile(filenameWithoutExtension, ".csv");
+        Path csvPath = Files.createTempFile(getFilenameWithoutExtension(jsonFile, ".json"), ".csv");
 
         if (jsonFile.isEmpty()) {
             return csvPath;
@@ -198,23 +195,19 @@ public class ConversionFrontendService {
     }
 
     /**
-     * <p>
-     *     Converts CSV file to JSON file. Any other extensions are not supported.
-     * </p>
+     * Converts CSV file to JSON file. Any other extensions are not supported.
      *
      * @param csvFile CSV file written in {@link MultipartFile} instance.
      * @param patternId ID of a pattern, which already exists in database.
      *
      * @return path to converted JSON file.
      *
-     * @throws IllegalArgumentException if {@code csvFile} consists of
-     * unsupported structure for conversion from CSV to JSON.
+     * @throws IllegalArgumentException if an incorrect CSV structure was provided in {@code csvFile}.
      * @throws NullPointerException if filename is null.
      * @throws UnsupportedExtensionException if {@code csvFile} was provided without '.csv' extension.
      * @throws EntityNotFoundException if pattern is not found in database by {@code patternId}.
      * @throws IllegalPatternException if pattern contains modification with null or empty {@code oldName} and {@code newName} fields.
      */
-    //fix separator problem
     public @NonNull Path convertCsvFileToJson(
             @NonNull MultipartFile csvFile,
             UUID patternId
@@ -290,17 +283,14 @@ public class ConversionFrontendService {
     }
 
     /**
-     * <p>
-     *     Converts JSON file to XML file. Any other extensions are not supported.
-     * </p>
+     * Converts JSON file to XML file. Any other extensions are not supported.
      *
      * @param jsonFile JSON file written in {@link MultipartFile} instance.
      * @param patternId ID of a pattern, which already exists in database.
      *
      * @return path to converted XML file.
      *
-     * @throws IllegalArgumentException if {@code jsonFile} consists of
-     * unsupported structure for conversion from JSON to XML.
+     * @throws IllegalArgumentException if an incorrect JSON structure was provided in {@code jsonFile}.
      * @throws NullPointerException if filename is null.
      * @throws UnsupportedExtensionException if {@code jsonFile} was provided without '.json' extension.
      * @throws EntityNotFoundException if pattern is not found in database by {@code patternId}.
@@ -348,17 +338,14 @@ public class ConversionFrontendService {
     }
 
     /**
-     * <p>
-     *     Converts XML file to JSON file. Any other extensions are not supported.
-     * </p>
+     * Converts XML file to JSON file. Any other extensions are not supported.
      *
      * @param xmlFile XML file written in {@link MultipartFile} instance.
      * @param patternId ID of a pattern, which already exists in database.
      *
      * @return path to converted JSON file.
      *
-     * @throws IllegalArgumentException if {@code xmlFile} consists of
-     * unsupported structure for conversion from XML to JSON.
+     * @throws IllegalArgumentException if an incorrect XML structure was provided in {@code xmlFile}.
      * @throws NullPointerException if filename is null.
      * @throws UnsupportedExtensionException if {@code xmlFile} was provided without '.xml' extension.
      * @throws EntityNotFoundException if pattern is not found in database by {@code patternId}.
@@ -455,8 +442,7 @@ public class ConversionFrontendService {
      *
      * @return path to converted CSV file.
      *
-     * @throws IllegalArgumentException if {@code xmlFile} consists of
-     * unsupported structure for conversion from XML to CSV.
+     * @throws IllegalArgumentException if an incorrect XML structure was provided in {@code xmlFile}.
      * @throws NullPointerException if filename is null.
      * @throws UnsupportedExtensionException if {@code xmlFile} was provided without '.xml' extension.
      * @throws EntityNotFoundException if pattern is not found in database by {@code patternId}.
@@ -544,23 +530,19 @@ public class ConversionFrontendService {
     }
 
     /**
-     * <p>
-     *     Converts CSV file to XML file. Any other extensions are not supported.
-     * </p>
+     * Converts CSV file to XML file. Any other extensions are not supported.
      *
      * @param csvFile CSV file written in {@link MultipartFile} instance.
      * @param patternId ID of a pattern, which already exists in database.
      *
      * @return path to converted XML file.
      *
-     * @throws IllegalArgumentException if {@code csvFile} consists of
-     * unsupported structure for conversion from CSV to XML.
+     * @throws IllegalArgumentException if an incorrect CSV structure was provided in {@code csvFile}.
      * @throws NullPointerException if filename is null.
      * @throws UnsupportedExtensionException if {@code csvFile} was provided without '.csv' extension.
      * @throws EntityNotFoundException if pattern is not found in database by {@code patternId}.
      * @throws IllegalPatternException if pattern contains modification with null or empty {@code oldName} and {@code newName} fields.
      */
-    //fix separator problem
     public @NonNull Path convertCsvFileToXml(
             @NonNull MultipartFile csvFile,
             UUID patternId
@@ -636,8 +618,9 @@ public class ConversionFrontendService {
 
     /**
      * @param file any {@link MultipartFile}.
-     * @param currentExtension current extension of {@code file}. It is supposed to have "." in itself. For example,
-     * {@code .json} or {@code .csv} are valid values for {@code currentExtension}, and {@code json}, {@code csv} are not valid.
+     * @param currentExtension current extension of {@code file}. It is supposed to have "." in itself.
+     * For example, {@code .json} or {@code .csv} are valid values for {@code currentExtension},
+     * and {@code json}, {@code csv} are not valid.
      *
      * @return filename without provided {@code currentExtension}.
      *
@@ -657,7 +640,6 @@ public class ConversionFrontendService {
         }
 
         String filename = file.getOriginalFilename();
-
         if (filename == null) {
             throw new NullPointerException("filename is null");
         }
@@ -672,7 +654,8 @@ public class ConversionFrontendService {
 
     /**
      * <p>
-     *     This method validates arguments for a conversion. It throws an exception if validation doesn't pass.
+     *     This method validates arguments for a conversion.
+     *     It throws an exception if validation doesn't pass.
      * </p>
      *
      * @param file requested file to convert.

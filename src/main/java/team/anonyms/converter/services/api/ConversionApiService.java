@@ -24,7 +24,7 @@ public class ConversionApiService {
      *
      * @return converted XML data from {@code body}.
      *
-     * @throws IllegalArgumentException if an unsupported JSON structure for conversion from JSON to XML was provided.
+     * @throws IllegalArgumentException if an incorrect JSON structure was provided.
      */
     public String convertJsonToXml(Map<String, Object> body) {
         try {
@@ -41,7 +41,7 @@ public class ConversionApiService {
      *
      * @return converted JSON data from {@code body}.
      *
-     * @throws IllegalArgumentException if an unsupported XML structure for conversion from XML to JSON was provided.
+     * @throws IllegalArgumentException if an incorrect XML structure was provided.
      */
     public String convertXmlToJson(Map<String, Object> body) {
         try {
