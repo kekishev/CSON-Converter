@@ -19,6 +19,9 @@ import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import java.util.UUID;
 
+/*
+TODO: validate whether user already has a verification code while sending code. If they have then return an exception.
+ */
 @Service
 public class EmailService {
     // Symbols for generating random codes
