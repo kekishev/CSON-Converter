@@ -20,6 +20,7 @@ import static org.springframework.http.MediaType.*;
 
 /*
 TODO: add option of choosing separator for CSV format
+TODO: fix IDOR of pattern ID in every endpoint
  */
 @RestController
 @CrossOrigin(exposedHeaders = {"Content-Disposition"})
